@@ -73,6 +73,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	        this.backgroundColor = new gamesaw.Graphics.Color(50, 50, 50);
 	        this.enemies = [];
 	        this.paused = false;
+	        this.showGameover = false;
+	        this.killCount = 0;
 	        // Powerup & Weapon spawn
 	        this.spawns = [];
 	        this.spawnTimeout = 0;
@@ -110,6 +112,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        this.backgroundSprite = new gamesaw.GL.Sprite(this.texture, 400, 300, [0, 0, 400, 300]);
 	        this.healthSprite = new gamesaw.GL.Sprite(this.texture, 7, 7, [432, 0, 7, 7]);
 	        this.armorSprite = new gamesaw.GL.Sprite(this.texture, 7, 7, [440, 0, 7, 7]);
+	        this.gameoverSprite = new gamesaw.GL.Sprite(this.texture, 160, 96, [0, 304, 160, 96]);
 	        this.spawnSprites = [
 	            new gamesaw.GL.Sprite(this.texture, 32, 16, [448, 16, 32, 16]),
 	            new gamesaw.GL.Sprite(this.texture, 32, 16, [448, 0, 32, 16]),
@@ -145,6 +148,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	                }
 	            }
 	            this.checkProjectileCollision();
+	            if (this.player.health < 0) {
+	                this.paused = true;
+	                this.showGameover = true;
+	            }
+	        }
+	        if (this.showGameover) {
+	            if (this.mouse.button[0]) {
+	                this.resetGame();
+	            }
 	        }
 	    };
 	    Game.prototype.render = function (delta) {
@@ -165,6 +177,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	    Game.prototype.renderStatus = function () {
 	        var healthWidth = 70 * (this.player.health / this.player.maxHealth);
 	        var armorWidth = 70 * (this.player.armor / this.player.maxArmor);
+	        if (armorWidth < 0) {
+	            armorWidth = 0;
+	        }
+	        if (healthWidth < 0) {
+	            healthWidth = 0;
+	        }
 	        this.healthSprite.width = healthWidth;
 	        this.armorSprite.width = armorWidth;
 	        this.healthSprite.renderScale(this.renderer, 450, 10, 2);
@@ -173,9 +191,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	        this.font.drawString(this.fontRenderer, this.player.getScore(), 770, 18);
 	        // 44, 6
 	        this.font.align = 1;
-	        this.font.drawString(this.fontRenderer, '0', 88, 10);
+	        this.font.drawString(this.fontRenderer, this.killCount.toString(), 88, 10);
 	        // 180, 7
 	        this.font.drawString(this.fontRenderer, this.player.getAmmo(), 360, 10);
+	        if (this.showGameover) {
+	            this.gameoverSprite.renderScale(this.renderer, 240, 176, 2);
+	        }
 	    };
 	    Game.prototype.updatePowerupWeaponSpawn = function (delta) {
 	        this.spawnTimeout += delta;
@@ -218,6 +239,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        for (var e in this.enemies) {
 	            this.enemies[+e].update(delta, this.player);
 	            if (this.enemies[+e].isDead()) {
+	                this.killCount += 1;
 	                this.player.addScore(this.enemies[+e].getWorth());
 	                this.enemies.splice(+e, 1);
 	            }
@@ -250,6 +272,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	                }
 	            }
 	        }
+	    };
+	    Game.prototype.resetGame = function () {
+	        this.player = new player_1.Player(this.gl, this.texture);
+	        this.spawns = [];
+	        this.enemies = [];
+	        this.killCount = 0;
+	        this.spawnTimeout = 0;
+	        this.enemyTimeout = 0;
+	        this.showGameover = false;
+	        this.paused = false;
 	    };
 	    return Game;
 	}());
@@ -4576,7 +4608,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    function Enemy(gl, texture, collider) {
 	        this.health = 5;
 	        this.armor = 0;
-	        this.damage = 2;
+	        this.damage = 10;
 	        this.worth = 100;
 	        this.dead = false;
 	        this.speed = 0.07;
