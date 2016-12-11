@@ -64,7 +64,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	"use strict";
 	var gamesaw = __webpack_require__(2);
 	var player_1 = __webpack_require__(77);
-	var enemy_1 = __webpack_require__(79);
+	var enemy_1 = __webpack_require__(81);
 	var Game = (function () {
 	    function Game() {
 	        this.width = 800;
@@ -72,9 +72,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	        this.targetFps = 60;
 	        this.backgroundColor = new gamesaw.Graphics.Color(50, 50, 50);
 	        this.enemies = [];
-	        this.paused = false;
+	        this.splatter = [];
+	        this.paused = true;
 	        this.showGameover = false;
+	        this.showStartGame = true;
 	        this.killCount = 0;
+	        this.startTimeout = 0;
 	        // Powerup & Weapon spawn
 	        this.spawns = [];
 	        this.spawnTimeout = 0;
@@ -113,12 +116,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	        this.healthSprite = new gamesaw.GL.Sprite(this.texture, 7, 7, [432, 0, 7, 7]);
 	        this.armorSprite = new gamesaw.GL.Sprite(this.texture, 7, 7, [440, 0, 7, 7]);
 	        this.gameoverSprite = new gamesaw.GL.Sprite(this.texture, 160, 96, [0, 304, 160, 96]);
+	        this.splatterSprite = new gamesaw.GL.Sprite(this.texture, 16, 16, [432, 16, 16, 16]);
 	        this.spawnSprites = [
-	            new gamesaw.GL.Sprite(this.texture, 32, 16, [448, 16, 32, 16]),
-	            new gamesaw.GL.Sprite(this.texture, 32, 16, [448, 0, 32, 16]),
-	            new gamesaw.GL.Sprite(this.texture, 16, 16, [480, 0, 16, 16]),
-	            new gamesaw.GL.Sprite(this.texture, 16, 16, [480, 16, 16, 16]),
-	            new gamesaw.GL.Sprite(this.texture, 16, 16, [496, 16, 16, 16]) // Quad damage
+	            new gamesaw.GL.Sprite(this.texture, 32, 16, [400, 64, 32, 16]),
+	            new gamesaw.GL.Sprite(this.texture, 32, 16, [400, 48, 32, 16]),
+	            new gamesaw.GL.Sprite(this.texture, 16, 16, [400, 32, 16, 16]),
+	            new gamesaw.GL.Sprite(this.texture, 16, 16, [416, 32, 16, 16]),
+	            new gamesaw.GL.Sprite(this.texture, 16, 16, [432, 32, 16, 16]),
+	            new gamesaw.GL.Sprite(this.texture, 16, 16, [448, 32, 16, 16]),
+	            new gamesaw.GL.Sprite(this.texture, 16, 16, [464, 32, 16, 16]) // Quad damage
 	        ];
 	        this.fontRenderer = new gamesaw.GL.Font.FontRenderer(this.gl);
 	        this.font = new gamesaw.GL.Font.Font(this.gl, '../assets/data/default.xml');
@@ -151,17 +157,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	            if (this.player.health < 0) {
 	                this.paused = true;
 	                this.showGameover = true;
+	                this.startTimeout = 1000;
 	            }
 	        }
 	        if (this.showGameover) {
-	            if (this.mouse.button[0]) {
+	            this.startTimeout -= delta;
+	            if (this.mouse.button[0] && this.startTimeout < 0) {
 	                this.resetGame();
+	            }
+	        }
+	        if (this.showStartGame) {
+	            if (this.mouse.button[0]) {
+	                this.showStartGame = false;
+	                this.paused = false;
 	            }
 	        }
 	    };
 	    Game.prototype.render = function (delta) {
 	        this.scene.clear('main');
 	        this.backgroundSprite.renderScale(this.renderer, 0, 0, 2);
+	        for (var _i = 0, _a = this.splatter; _i < _a.length; _i++) {
+	            var gore = _a[_i];
+	            this.splatterSprite.renderScale(this.renderer, gore.x, gore.y, 2);
+	        }
 	        this.player.render(this.renderer);
 	        for (var e in this.enemies) {
 	            this.enemies[+e].render(this.renderer);
@@ -188,13 +206,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	        this.healthSprite.renderScale(this.renderer, 450, 10, 2);
 	        this.armorSprite.renderScale(this.renderer, 450, 38, 2);
 	        this.font.align = 2;
-	        this.font.drawString(this.fontRenderer, this.player.getScore(), 770, 18);
+	        this.font.drawString(this.fontRenderer, this.player.getScore(), 770, 16);
 	        // 44, 6
 	        this.font.align = 1;
-	        this.font.drawString(this.fontRenderer, this.killCount.toString(), 88, 10);
+	        this.font.drawString(this.fontRenderer, this.killCount.toString(), 88, 8);
 	        // 180, 7
 	        this.font.drawString(this.fontRenderer, this.player.getAmmo(), 360, 10);
 	        if (this.showGameover) {
+	            this.gameoverSprite.renderScale(this.renderer, 240, 176, 2);
+	        }
+	        if (this.showStartGame) {
 	            this.gameoverSprite.renderScale(this.renderer, 240, 176, 2);
 	        }
 	    };
@@ -217,15 +238,19 @@ return /******/ (function(modules) { // webpackBootstrap
 	                var sprite = void 0;
 	                switch (powerupType) {
 	                    case 0:
-	                    case 1:
-	                    case 2:
 	                        sprite = this.spawnSprites[2];
 	                        break;
-	                    case 3:
+	                    case 1:
 	                        sprite = this.spawnSprites[3];
 	                        break;
-	                    case 4:
+	                    case 2:
 	                        sprite = this.spawnSprites[4];
+	                        break;
+	                    case 3:
+	                        sprite = this.spawnSprites[5];
+	                        break;
+	                    case 4:
+	                        sprite = this.spawnSprites[6];
 	                        break;
 	                    case 5:
 	                        sprite = this.spawnSprites[2];
@@ -241,6 +266,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	            if (this.enemies[+e].isDead()) {
 	                this.killCount += 1;
 	                this.player.addScore(this.enemies[+e].getWorth());
+	                this.splatter.push(new gamesaw.Geometry.Point(this.enemies[+e].collider.pos.x - 16, this.enemies[+e].collider.pos.y - 16));
 	                this.enemies.splice(+e, 1);
 	            }
 	        }
@@ -277,6 +303,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        this.player = new player_1.Player(this.gl, this.texture);
 	        this.spawns = [];
 	        this.enemies = [];
+	        this.splatter = [];
 	        this.killCount = 0;
 	        this.spawnTimeout = 0;
 	        this.enemyTimeout = 0;
@@ -4366,8 +4393,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	"use strict";
 	var gamesaw = __webpack_require__(2);
 	var projectile_1 = __webpack_require__(78);
-	var weapon_1 = __webpack_require__(80);
-	var powerup_1 = __webpack_require__(81);
+	var weapon_1 = __webpack_require__(79);
+	var powerup_1 = __webpack_require__(80);
 	var Player = (function () {
 	    function Player(gl, texture) {
 	        this.health = 100;
@@ -4410,8 +4437,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 	    };
 	    Player.prototype.render = function (renderer) {
-	        this.baseSprite.renderScale(renderer, this.collider.pos.x - this.collider.radius, this.collider.pos.y - this.collider.radius, 2);
-	        this.dirSprite.renderAngleScale(renderer, this.collider.pos.x - this.collider.radius, this.collider.pos.y - this.collider.radius, gamesaw.Utility.radianToDegree(this.direction.angle()), 2);
+	        // this.baseSprite.renderScale(renderer, this.collider.pos.x - this.collider.radius, this.collider.pos.y - this.collider.radius, 2);
+	        this.baseSprite.renderAngleScale(renderer, this.collider.pos.x - this.collider.radius, this.collider.pos.y - this.collider.radius, gamesaw.Utility.radianToDegree(this.direction.angle()), 2);
 	        if (this.powerup) {
 	            this.powerup.render(renderer);
 	        }
@@ -4599,88 +4626,6 @@ return /******/ (function(modules) { // webpackBootstrap
 
 /***/ },
 /* 79 */
-/***/ function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var gamesaw = __webpack_require__(2);
-	var projectile_1 = __webpack_require__(78);
-	var Enemy = (function () {
-	    function Enemy(gl, texture, collider) {
-	        this.health = 5;
-	        this.armor = 0;
-	        this.damage = 10;
-	        this.worth = 100;
-	        this.dead = false;
-	        this.speed = 0.07;
-	        this.fireTimeout = 0;
-	        this.msBetweenRounds = 1000;
-	        this.projectiles = [];
-	        this.gl = gl;
-	        this.texture = texture;
-	        this.collider = collider;
-	        this.baseSprite = new gamesaw.GL.Sprite(this.texture, 16, 16, [400, 0, 16, 16]);
-	        this.dirSprite = new gamesaw.GL.Sprite(this.texture, 16, 16, [416, 16, 16, 16]);
-	        this.direction = new gamesaw.Geometry.Vector2(0.0, 0.0);
-	        this.msBetweenRounds = Math.random() * 1000 - 500 + 1000;
-	    }
-	    Enemy.prototype.update = function (delta, player) {
-	        this.direction = this.seek(new gamesaw.Geometry.Vector2(player.collider.pos.x, player.collider.pos.y));
-	        this.updateMovement(this.direction, delta);
-	        this.fireTimeout += delta;
-	        if (this.fireTimeout > this.msBetweenRounds) {
-	            this.fireTimeout = 0;
-	            this.projectiles.push(new projectile_1.Projectile(this.gl, this.texture, new gamesaw.Geometry.Circle(this.collider.pos.x, this.collider.pos.y, 3), 0.6, this.damage, this.direction.copy()));
-	        }
-	        for (var i in this.projectiles) {
-	            this.projectiles[+i].update(delta);
-	            if (this.projectiles[+i].isDead()) {
-	                this.projectiles.splice(+i, 1);
-	            }
-	        }
-	    };
-	    Enemy.prototype.render = function (renderer) {
-	        this.baseSprite.renderScale(renderer, this.collider.pos.x - this.collider.radius, this.collider.pos.y - this.collider.radius, 2);
-	        this.dirSprite.renderAngleScale(renderer, this.collider.pos.x - this.collider.radius, this.collider.pos.y - this.collider.radius, gamesaw.Utility.radianToDegree(this.direction.angle()), 2);
-	        for (var i in this.projectiles) {
-	            this.projectiles[+i].render(renderer);
-	        }
-	    };
-	    Enemy.prototype.getProjectiles = function () {
-	        return this.projectiles;
-	    };
-	    Enemy.prototype.getCollider = function () {
-	        return this.collider;
-	    };
-	    Enemy.prototype.getWorth = function () {
-	        return this.worth;
-	    };
-	    Enemy.prototype.doDamage = function (damage) {
-	        this.health -= damage;
-	        if (this.health < 0) {
-	            this.dead = true;
-	        }
-	    };
-	    Enemy.prototype.isDead = function () {
-	        return this.dead;
-	    };
-	    Enemy.prototype.seek = function (playerPosition) {
-	        var positionVector = new gamesaw.Geometry.Vector2(this.collider.pos.x, this.collider.pos.y);
-	        return playerPosition.sub(positionVector).normalize();
-	    };
-	    Enemy.prototype.updateMovement = function (direction, delta) {
-	        var position = new gamesaw.Geometry.Vector2(this.collider.pos.x, this.collider.pos.y);
-	        direction = direction.scale(this.speed * delta);
-	        position = position.add(direction);
-	        this.collider.setX(position.x);
-	        this.collider.setY(position.y);
-	    };
-	    return Enemy;
-	}());
-	exports.Enemy = Enemy;
-
-
-/***/ },
-/* 80 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -4739,7 +4684,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 81 */
+/* 80 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -4783,7 +4728,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 	    };
 	    Powerup.prototype.render = function (renderer) {
-	        this.sprite.renderScale(renderer, 148, 10, 2);
+	        this.sprite.renderScale(renderer, 143, 10, 2);
 	    };
 	    Powerup.prototype.isActive = function () {
 	        return this.active;
@@ -4794,6 +4739,88 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return Powerup;
 	}());
 	exports.Powerup = Powerup;
+
+
+/***/ },
+/* 81 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var gamesaw = __webpack_require__(2);
+	var projectile_1 = __webpack_require__(78);
+	var Enemy = (function () {
+	    function Enemy(gl, texture, collider) {
+	        this.health = 5;
+	        this.armor = 0;
+	        this.damage = 10;
+	        this.worth = 100;
+	        this.dead = false;
+	        this.speed = 0.07;
+	        this.fireTimeout = 0;
+	        this.msBetweenRounds = 1000;
+	        this.projectiles = [];
+	        this.gl = gl;
+	        this.texture = texture;
+	        this.collider = collider;
+	        this.baseSprite = new gamesaw.GL.Sprite(this.texture, 16, 16, [400, 0, 16, 16]);
+	        this.dirSprite = new gamesaw.GL.Sprite(this.texture, 16, 16, [416, 16, 16, 16]);
+	        this.direction = new gamesaw.Geometry.Vector2(0.0, 0.0);
+	        this.msBetweenRounds = Math.random() * 1000 - 500 + 1000;
+	    }
+	    Enemy.prototype.update = function (delta, player) {
+	        this.direction = this.seek(new gamesaw.Geometry.Vector2(player.collider.pos.x, player.collider.pos.y));
+	        this.updateMovement(this.direction, delta);
+	        this.fireTimeout += delta;
+	        if (this.fireTimeout > this.msBetweenRounds) {
+	            this.fireTimeout = 0;
+	            this.projectiles.push(new projectile_1.Projectile(this.gl, this.texture, new gamesaw.Geometry.Circle(this.collider.pos.x, this.collider.pos.y, 3), 0.6, this.damage, this.direction.copy()));
+	        }
+	        for (var i in this.projectiles) {
+	            this.projectiles[+i].update(delta);
+	            if (this.projectiles[+i].isDead()) {
+	                this.projectiles.splice(+i, 1);
+	            }
+	        }
+	    };
+	    Enemy.prototype.render = function (renderer) {
+	        // this.baseSprite.renderScale(renderer, this.collider.pos.x - this.collider.radius, this.collider.pos.y - this.collider.radius, 2);
+	        this.baseSprite.renderAngleScale(renderer, this.collider.pos.x - this.collider.radius, this.collider.pos.y - this.collider.radius, gamesaw.Utility.radianToDegree(this.direction.angle()), 2);
+	        for (var i in this.projectiles) {
+	            this.projectiles[+i].render(renderer);
+	        }
+	    };
+	    Enemy.prototype.getProjectiles = function () {
+	        return this.projectiles;
+	    };
+	    Enemy.prototype.getCollider = function () {
+	        return this.collider;
+	    };
+	    Enemy.prototype.getWorth = function () {
+	        return this.worth;
+	    };
+	    Enemy.prototype.doDamage = function (damage) {
+	        this.health -= damage;
+	        if (this.health < 0) {
+	            this.dead = true;
+	        }
+	    };
+	    Enemy.prototype.isDead = function () {
+	        return this.dead;
+	    };
+	    Enemy.prototype.seek = function (playerPosition) {
+	        var positionVector = new gamesaw.Geometry.Vector2(this.collider.pos.x, this.collider.pos.y);
+	        return playerPosition.sub(positionVector).normalize();
+	    };
+	    Enemy.prototype.updateMovement = function (direction, delta) {
+	        var position = new gamesaw.Geometry.Vector2(this.collider.pos.x, this.collider.pos.y);
+	        direction = direction.scale(this.speed * delta);
+	        position = position.add(direction);
+	        this.collider.setX(position.x);
+	        this.collider.setY(position.y);
+	    };
+	    return Enemy;
+	}());
+	exports.Enemy = Enemy;
 
 
 /***/ }
